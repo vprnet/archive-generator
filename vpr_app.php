@@ -1,6 +1,8 @@
 <?php
-require_once('simple_html_dom.php');
+//currently images don't autodownload while scraping
 
+require_once('simple_html_dom.php');
+error_reporting(E_ERROR | E_PARSE);
 class vpr_app
 {
 
@@ -26,16 +28,11 @@ class vpr_app
             $r['text'] = $s->find('.text', 0)->innertext;
             $r['byline'] = $s->find('.byline', 0)->innertext;
             $r['images'] = array();
-            if (strpos($r['title'], ':') !== false) {
-                $temp = explode(":", $r['title']);
-                $r['category'] = $temp[0];
-            } else {
-                $r['category'] = $category;
-            }
+            $r['category'] = $category;
             $r['file'] = preg_replace('/\PL/u', '', $r['title']) . ".html";
             $r['audio']['title'] = "test";
             $r['audio']['url'] = $s->find('.audio', 0)->innertext;
-            //$this->download_audio($r['audio']['url'],"./output");
+            //  $this->download_audio($r['audio']['url'],"./output");
             $r['audio']['file'] = "./audio/" . basename($r['audio']['url']);
             $r['isSingle'] = FALSE;
             $r['id'] = $s->find('.id', 0)->plaintext;
@@ -77,12 +74,38 @@ class vpr_app
             $str = trim($str, '-');
             $r['file'] = $str;
             $r['category'] = $category;
+            $r['byline'] = "Steve Zind";
             $r['isSingle'] = FALSE;
             $this->posts[] = $r;
         }
     }
 
-//doesn't work ATM
+    function category_chunk(&$array)
+    {
+
+        $categories = [];
+        $final = [];
+        //count unique  categories
+        foreach ($array as $a) {
+            if (!in_array($a['category'], $categories)) {
+                $categories [] = $a['category'];
+            }
+        }
+
+        foreach ($categories as $c) {
+
+            foreach ($array as $a) {
+                if ($c = $a['category']) {
+                    $final[$c][] = $a;
+                }
+            }
+        }
+
+
+        $array = $final;
+    }
+
+//download image from url NOT WORKING
     function download_image($name)
     {
         echo "Downloading " . $url . "<br>";
@@ -158,7 +181,7 @@ class vpr_app
 //get attr
     public function get($prop)
     {
-        return $this->$prop;
+        return $this->$prop . "<br />";
     }
 
 //create the index
@@ -172,27 +195,44 @@ class vpr_app
         $social['image'] = $this->config['root_url'] . $this->config['social_image'];
         $social['hashtags'] = $this->config['social_hashtags'];
         $social['twitter_text'] = $this->config['social_twitter_text'];
-        $this->aasort($this->posts, "time");
+        $this->category_chunk($this->posts);
         $data = "";
         ob_start();
         include('/includes/header.php');
         $data .= ob_get_clean();
-        foreach ($this->posts as $post) {
-            // echo "TEXT:" . $post['text'] . "<br><br><br>";
-            $html = str_get_html($post['text']);
-            $post['image'] = $html->find('img', 0)->src;
-            $text = $this->excerpt(strip_tags($post['text']), 350) . "<p><span class=\"file glyphicon glyphicon-file\"></span> <a href=\"" . $post['file'] . "\">Read More</a></p>";
-            $post['text'] = preg_replace("/&#?nsbp+;/i", "", $text);
-            $post['landscape'] = FALSE;
-            if (isset($post['image'])) {
-                $image_size = getimagesize("./output/image/" . basename($post['image']));
-                if ($image_size[0] > 500 AND $image_size[1] < 600) {
-                    $post['landscape'] = TRUE;
-                }
-            }
+        foreach (array_reverse($this->posts) as $category) {
+            print_r($category);
             ob_start();
-            include('/includes/story.php');
+            ?>
+            <div style="height:56px;text-align:center;color:white; font-size:24px;background:#e77565;padding:5px;" class="row top_story">
+                <div class="category" style="display:none"><?php echo $category[0]['category'];?></div>
+                <div style="margin-top:10px;" class="col-xs-12">
+                    <p><span>
+                <?php
+                echo $category[0]['category'];
+                ?>
+                    </span></p>
+                </div>
+            </div>
+            <?php
             $data .= ob_get_clean();
+            foreach ($category as $post) {
+                // echo "TEXT:" . $post['text'] . "<br><br><br>";
+                $html = str_get_html($post['text']);
+                $post['image'] = $html->find('img', 0)->src;
+                $text = $this->excerpt(strip_tags($post['text']), 350) . "<p><span class=\"file glyphicon glyphicon-file\"></span> <a href=\"" . $post['file'] . "\">Read More</a></p>";
+                $post['text'] = preg_replace("/&#?nsbp+;/i", "", $text);
+                $post['landscape'] = FALSE;
+                if (isset($post['image'])) {
+                    $image_size = getimagesize("./output/image/" . basename($post['image']));
+                    if ($image_size[0] > 500 AND $image_size[1] < 600) {
+                        $post['landscape'] = TRUE;
+                    }
+                }
+                ob_start();
+                include('/includes/story.php');
+                $data .= ob_get_clean();
+            }
         }
         ob_start();
         include('/includes/sidebar.php');
