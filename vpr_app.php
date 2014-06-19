@@ -95,10 +95,17 @@ class vpr_app
         foreach ($categories as $c) {
 
             foreach ($array as $a) {
-                if ($c = $a['category']) {
-                    $final[$c][] = $a;
+                if ($c == $a['category']) {
+                    if (!in_array($a['title'], $final[$c])) {
+                        $final[$c][] = $a;
+                    }
                 }
             }
+        }
+
+        foreach ($final as &$c){
+
+            $this->aasort($c, "time");
         }
 
 
