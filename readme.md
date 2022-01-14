@@ -4,7 +4,7 @@ A generator for converting Posterous and VPR Archive exports to flat files for d
 ## Author
 [Colin Urban](https://github.com/colinurbs)
 
-##Copyright and License
+## Copyright and License
 
 Copyright 2014 Vermont Public Radio
 
